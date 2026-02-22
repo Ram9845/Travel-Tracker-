@@ -6,70 +6,72 @@ const app = express();
 const port = 3000;
 
 const db = new pg.Client({
-  user: "postgres",
-  host: "localhost",
-  database: "world",
-  password: "123456",
-  port: 5432,
+  user : "postgres",
+  password : "passkalla",
+  host : "localhost",
+  port : 5432,
+  database : "world"
 });
+
 db.connect();
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
-let currentUserId = 1;
-
-let users = [
-  { id: 1, name: "Angela", color: "teal" },
-  { id: 2, name: "Jack", color: "powderblue" },
-];
-
-async function checkVisisted() {
-  const result = await db.query("SELECT country_code FROM visited_countries");
+async function visitedCountries(){
+  const result =  await db.query("SELECT country_code FROM visited_countries");
   let countries = [];
   result.rows.forEach((country) => {
     countries.push(country.country_code);
   });
-  return countries;
-}
-app.get("/", async (req, res) => {
-  const countries = await checkVisisted();
-  res.render("index.ejs", {
-    countries: countries,
-    total: countries.length,
-    users: users,
-    color: "teal",
-  });
-});
-app.post("/add", async (req, res) => {
-  const input = req.body["country"];
+  const total = countries.length;
+  return {countries, total};
+};
 
+async function addCountries(countryCode) {
+  let duplicate = false;
   try {
-    const result = await db.query(
-      "SELECT country_code FROM countries WHERE LOWER(country_name) LIKE '%' || $1 || '%';",
-      [input.toLowerCase()]
+    await db.query(
+      "INSERT INTO visited_countries (country_code) VALUES ($1)",
+      [countryCode]
     );
-
-    const data = result.rows[0];
-    const countryCode = data.country_code;
-    try {
-      await db.query(
-        "INSERT INTO visited_countries (country_code) VALUES ($1)",
-        [countryCode]
-      );
-      res.redirect("/");
-    } catch (err) {
-      console.log(err);
-    }
   } catch (err) {
-    console.log(err);
+    if (err.code === "23505") {
+      duplicate = true;   
+    } else {
+      throw err;          
+    }
   }
-});
-app.post("/user", async (req, res) => {});
+  const { countries, total } = await visitedCountries();
+  return { countries, total, duplicate };
+};
 
-app.post("/new", async (req, res) => {
-  //Hint: The RETURNING keyword can return the data that was inserted.
-  //https://www.postgresql.org/docs/current/dml-returning.html
+app.get("/", async (req, res) => {
+ 
+  const {countries, total} = await visitedCountries();
+    
+  res.render("index.ejs" , {countries:countries , total:total});
+  // db.end();
+});
+
+app.post("/add" , async(req,res)=>{
+  const countryAdded = req.body.country;
+  
+    const result = await db.query("SELECT country_code FROM countries WHERE country_name ILIKE '%'||$1||'%'" , [countryAdded]);
+    if (result.rows.length != 0){
+      console.log(result.rows[0].country_code);
+      const countryCode = result.rows[0].country_code;
+      const {countries, total , duplicate} = await addCountries(countryCode);
+      if (duplicate) {
+        const error = "Country has already been added, try again.";
+        res.render("index.ejs", {countries: countries, total: total, error: error});
+      } else {
+        res.render("index.ejs", {countries: countries, total: total});
+      }
+    } else {
+      const {countries, total} = await visitedCountries();
+      res.render("index.ejs", {countries: countries, total: total, error: "Country not found, try again."});  
+    }
 });
 
 app.listen(port, () => {
