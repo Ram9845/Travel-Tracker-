@@ -70,8 +70,11 @@ app.get("/", async (req, res) => {
 });
 
 app.post("/add", async (req, res) => {
-  const input = req.body["country"];
+  const input = req.body["country"]?.trim();
   const currentUser = await getCurrentUser();
+  const isDelete = req.body.action === "delete";
+
+  if (!input) return res.redirect("/");
 
   try {
     const result = await db.query(
@@ -84,10 +87,17 @@ app.post("/add", async (req, res) => {
     }
     const countryCode = result.rows[0].country_code;
     try {
-      await db.query(
-        "INSERT INTO visited_countries (country_code, user_id) VALUES ($1, $2)",
-        [countryCode, currentUserId]
-      );
+      if (isDelete) {
+        await db.query(
+          "DELETE FROM visited_countries WHERE country_code = $1 AND user_id = $2;",
+          [countryCode, currentUserId]
+        );
+      } else {
+        await db.query(
+          "INSERT INTO visited_countries (country_code, user_id) VALUES ($1, $2)",
+          [countryCode, currentUserId]
+        );
+      }
       res.redirect("/");
     } catch (err) {
       console.log(err);

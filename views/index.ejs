@@ -15,16 +15,19 @@
       <label for="<%= user.id %>" style="background-color: <%= user.color %>;">
         <%= user.name %>
       </label>
-      <% }); %>
+    <% }); %>
 
-        <input type="submit" name="add" value="new" id="tab">
-        <label for="tab">Add Family Member</label>
+    <input type="submit" name="add" value="new" id="tab">
+    <label for="tab">Add Family Member</label>
 
   </form>
 
   <form action="/add" method="post">
     <input type="text" name="country" autofocus placeholder="<%= locals.error ? error :  'Enter country name'%>">
-    <button type="submit" style="background-color: <%= color %>;">Add</button>
+    <div class="action-row">
+      <button type="submit" class="btn btn-add" style="background-color: <%= color %>;">Add</button>
+      <button type="submit" name="action" value="delete" class="btn btn-delete">Delete</button>
+    </div>
   </form>
 
   <section class="ag-canvas">
